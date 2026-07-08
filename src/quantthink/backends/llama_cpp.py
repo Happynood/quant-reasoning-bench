@@ -84,10 +84,13 @@ class LlamaCppBackend(Backend):
         self._model_path = model_path
         self._kv_dtype = kv_dtype
 
-        kv_kwargs: dict[str, int] = {}
+        # Quantized KV cache (type_k/type_v other than F16) requires flash attention
+        # in llama.cpp — without it, context creation fails with "Failed to create
+        # llama_context" (confirmed on this hardware/llama-cpp-python 0.3.33).
+        kv_kwargs: dict[str, int | bool] = {}
         if kv_dtype != "fp16":
             ggml_type = kv_dtype_to_ggml_type(kv_dtype)
-            kv_kwargs = {"type_k": ggml_type, "type_v": ggml_type}
+            kv_kwargs = {"type_k": ggml_type, "type_v": ggml_type, "flash_attn": True}
 
         self._llm = Llama(
             model_path=model_path,
