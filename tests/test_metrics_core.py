@@ -55,3 +55,20 @@ def test_compute_metrics_all_correct_no_unsolved_tl():
     m = compute_metrics(results)
     assert m.tl_unsolved is None
     assert m.tl_solved == 5.0
+
+
+def test_compute_metrics_truncation_rate():
+    results = [
+        evaluate_instance("p1", 0, True, thinking_tokens=5, total_tokens=10, hit_max_tokens=True),
+        evaluate_instance("p2", 0, True, thinking_tokens=5, total_tokens=10, hit_max_tokens=False),
+        evaluate_instance("p3", 0, True, thinking_tokens=5, total_tokens=10, hit_max_tokens=False),
+        evaluate_instance("p4", 0, True, thinking_tokens=5, total_tokens=10, hit_max_tokens=False),
+    ]
+    m = compute_metrics(results)
+    assert m.truncation_rate == pytest.approx(0.25)
+
+
+def test_compute_metrics_truncation_rate_zero_when_none_truncated():
+    results = [evaluate_instance("p1", 0, True, thinking_tokens=5, total_tokens=10)]
+    m = compute_metrics(results)
+    assert m.truncation_rate == 0.0

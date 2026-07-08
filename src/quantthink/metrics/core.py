@@ -18,6 +18,7 @@ class InstanceResult:
     thinking_tokens: int
     total_tokens: int
     thinking_truncated: bool = False
+    hit_max_tokens: bool = False
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,7 @@ class MetricsResult:
     tl_unsolved: float | None
     cts: float | None
     total_tokens_mean: float
+    truncation_rate: float
 
 
 def evaluate_instance(
@@ -38,6 +40,7 @@ def evaluate_instance(
     thinking_tokens: int,
     total_tokens: int,
     thinking_truncated: bool = False,
+    hit_max_tokens: bool = False,
 ) -> InstanceResult:
     return InstanceResult(
         problem_id=problem_id,
@@ -46,6 +49,7 @@ def evaluate_instance(
         thinking_tokens=thinking_tokens,
         total_tokens=total_tokens,
         thinking_truncated=thinking_truncated,
+        hit_max_tokens=hit_max_tokens,
     )
 
 
@@ -69,6 +73,7 @@ def compute_metrics(results: list[InstanceResult]) -> MetricsResult:
     tl_unsolved = sum(unsolved) / len(unsolved) if unsolved else None
 
     cts = total_tokens_mean / acc if acc > 0 else None
+    truncation_rate = sum(1 for r in results if r.hit_max_tokens) / n
 
     return MetricsResult(
         n=n,
@@ -78,4 +83,5 @@ def compute_metrics(results: list[InstanceResult]) -> MetricsResult:
         tl_unsolved=tl_unsolved,
         cts=cts,
         total_tokens_mean=total_tokens_mean,
+        truncation_rate=truncation_rate,
     )

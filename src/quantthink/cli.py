@@ -59,7 +59,10 @@ def run_cmd(
     write_result(result, out)
     click.echo(f"Result written to {out}")
     cts_str = f"{result.metrics.cts:.1f}" if result.metrics.cts is not None else "N/A"
-    click.echo(f"  Acc={result.metrics.acc:.3f}  TL={result.metrics.tl_mean:.1f}  CTS={cts_str}")
+    click.echo(
+        f"  Acc={result.metrics.acc:.3f}  TL={result.metrics.tl_mean:.1f}  CTS={cts_str}  "
+        f"TruncRate={result.metrics.truncation_rate:.2f}"
+    )
 
     if manifest_path:
         write_manifest(result.manifest, manifest_path)

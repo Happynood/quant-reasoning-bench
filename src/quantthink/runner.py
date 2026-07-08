@@ -43,10 +43,12 @@ class RunResult:
             "tl_unsolved": self.metrics.tl_unsolved,
             "cts": self.metrics.cts,
             "total_tokens_mean": self.metrics.total_tokens_mean,
+            "truncation_rate": self.metrics.truncation_rate,
             "total_latency_ms": self.total_latency_ms,
             "vram_gb": (self.peak_vram_mb / 1024.0) if self.peak_vram_mb is not None else None,
             "config": self.config,
             "manifest": asdict(self.manifest),
+            "instances": [asdict(r) for r in self.instance_results],
         }
 
 
@@ -103,6 +105,7 @@ def run_eval(
                     thinking_tokens=len(extraction.thinking.split()),
                     total_tokens=gen.output_tokens,
                     thinking_truncated=extraction.thinking_truncated,
+                    hit_max_tokens=gen.output_tokens >= cfg.max_tokens,
                 )
             )
 

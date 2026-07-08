@@ -27,5 +27,19 @@ def test_e2e_result_to_dict_has_required_fields(smoke_config_path):
     result = run_eval(cfg, problems, backend, config_path=smoke_config_path)
 
     d = result.to_dict()
-    for key in ("acc", "tl_mean", "config", "manifest"):
+    for key in ("acc", "tl_mean", "truncation_rate", "config", "manifest", "instances"):
         assert key in d
+
+
+def test_e2e_hit_max_tokens_flagged_when_generation_uses_full_budget(smoke_config_path):
+    cfg = load_config(smoke_config_path)
+    cfg = cfg.model_copy(update={"max_tokens": 5})
+    backend = MockBackend(model=cfg.model, latency_ms=0, answer="4", thinking_tokens=20)
+    problems = load_toy()
+
+    result = run_eval(cfg, problems, backend, config_path=smoke_config_path)
+
+    # MockBackend ignores max_tokens and always emits a fixed-length output, so
+    # every instance's output_tokens exceeds the tiny max_tokens=5 budget.
+    assert all(r.hit_max_tokens for r in result.instance_results)
+    assert result.metrics.truncation_rate == 1.0
