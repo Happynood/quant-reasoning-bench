@@ -190,8 +190,33 @@ uv run quantthink recommend results/phase1/*_E1.json results/phase2/*_E1.json --
 
 **E3 (GPQA) investigated, not yet integrated:** the official `Idavidrein/gpqa` dataset is gated behind a data-sharing agreement; an ungated mirror (`hendrydong/gpqa_diamond`) exists but only exposes free-text `problem`/`solution` fields (no separate multiple-choice options), which doesn't match this project's multiple-choice checker (`check_multiple_choice` expects a bare A/B/C/D) — it would need either the gated official dataset or a checker rework to score free-form physics/chemistry/biology answers via `check_math`-style normalization. Deferred; disclosed here rather than silently skipped.
 
+### Phase 4: real GPTQ calibration of M1 on the RTX 3050
+
+Tooling landscape check: `autoawq` has had no release since 2025-05 (stale) — not used. `gptqmodel` 7.1.0 (2026-06-08) was chosen: since its 5.0.0+ line it natively supports both GPTQ and AWQ ("has fully supplanted AutoGPTQ and AutoAWQ"), so a second tool wasn't needed for this pass.
+
+**Recipe:** GPTQ, 4-bit, group_size=128, calibrated on 128 texts (≥512 chars each) from `Salesforce/wikitext`'s `wikitext-2-raw-v1` train split, batch_size=1. Run in a scratch venv (`/tmp/gptq-calib`, not the project's own `.venv`, since it needs a full torch/transformers/accelerate stack the llama-cpp-python-based runtime doesn't) against the original `deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B` safetensors checkpoint.
+
+**Three real bugs hit and fixed while producing this:**
+1. The `wikitext` dataset repo uses an old loading-script format incompatible with the current `datasets` library (`HfUriError` when resolving `.huggingface.yaml`) — fixed by switching to the parquet-based `Salesforce/wikitext` mirror of the same data.
+2. `/tmp` on this machine is a 7.5GB **tmpfs** (RAM-backed), and `gptqmodel`'s default `offload_to_disk` scratch path silently wrote there, filling it (`Disk quota exceeded`) partway through calibration. Fixed by pointing `QuantizeConfig(offload_to_disk_path=...)` and the final output path at `/home/alexander/gptq-scratch` (the real disk, 41GB free), and clearing the ~937MB of orphaned scratch files the crashed run left in `/tmp`.
+3. Evaluating the quantized model failed to load with the auto-selected `MarlinLinear` kernel: first `ninja` was missing (`pip install ninja` fixed the JIT build tool), then the JIT compile itself failed with `CUDA_HOME environment variable is not set` — the Marlin/Triton kernels need `nvcc` (the CUDA *toolkit*, not just the driver) to compile, which this machine doesn't have, matching the exact same constraint already documented for `llama-cpp-python`. Fixed by explicitly loading with `backend=BACKEND.TORCH` (gptqmodel's pure-PyTorch dequantize-and-matmul path), which needs no compilation step.
+
+**Measured, real (N=6 problems x 2 seeds = 12 samples, GSM8K, per this project's own extractor/checker for a scoring methodology consistent with every other result here):**
+
+| Metric | Value |
+|---|---|
+| Acc | 0.750 (9/12) |
+| TL (mean thinking tokens) | 317.4 |
+| CTS | 1025.1 |
+| Truncation rate | 0.0 |
+| Peak VRAM (`torch.cuda.max_memory_allocated`, `BACKEND.TORCH`) | 1.63 GB |
+
+For comparison, the llama.cpp Q4_K_M **GGUF** quant of the same base model measured 0.583 Acc / 420.8 TL / 1532.1 CTS at the same N (Phase 1). This GPTQ quant nominally scores higher here — plausible since GPTQ uses real calibration data to minimize reconstruction error while GGUF's Q4_K_M is calibration-free — but **this is one N=12 comparison with two different VRAM-measurement methodologies (`nvidia-smi` for GGUF vs. `torch.cuda.max_memory_allocated` for GPTQ's `BACKEND.TORCH` path) and is not a statistically confirmed or directly apples-to-apples result.** Treat as a real, disclosed first data point, not a verdict on GPTQ vs. GGUF.
+
+Published: [happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ](https://huggingface.co/happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ).
+
 ### Next real-run steps
 - Run the fuller ~200-problem x 5-seed sweep for the statistically-rigorous leaderboard entry (this is a multi-hour GPU job at the timing observed above — planned as a dedicated follow-up, not blocking further phase work).
 - Confirm H3 properly: same N, same baseline-quant convention (e.g. all vs. each model's best-fitting quant), across all three models.
 - M4 (third-family stretch model): not yet chosen — the small-reasoning-model landscape moves monthly. Will be verified and recorded here before Phase 6.
-- AWQ/GPTQ tooling (Phase 4): `pyproject.toml`'s `quantize` extra currently lists `autoawq` and `gptqmodel` as placeholders; the currently-maintained package names will be re-verified immediately before Phase 4 and this note updated with the actual versions used.
+- GPTQ/AWQ calibration for M2 (Qwen3-1.7B) and M3 (Qwen3-0.6B), where licensing allows — not yet attempted.

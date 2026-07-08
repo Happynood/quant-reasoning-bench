@@ -36,8 +36,15 @@ datasets = [
     "datasets>=2.0",
 ]
 quantize = [
-    "autoawq>=0.2; sys_platform == 'linux'",
-    "gptqmodel>=1.0; sys_platform == 'linux'",
+    # autoawq is stale (no release since 2025-05) — gptqmodel 5.0+ natively
+    # supports both GPTQ and AWQ, verified current at build time (see
+    # docs/RUN_REAL.md). Calibration itself runs in a separate scratch venv,
+    # not this project's own — these are declared here for discoverability.
+    "gptqmodel>=7.0; sys_platform == 'linux'",
+    "torch; sys_platform == 'linux'",
+    "transformers; sys_platform == 'linux'",
+    "accelerate; sys_platform == 'linux'",
+    "ninja; sys_platform == 'linux'",
 ]
 space = [
     "gradio>=4.0",

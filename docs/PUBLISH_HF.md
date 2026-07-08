@@ -5,6 +5,7 @@
 - **[happynood/quantthink-suite](https://huggingface.co/datasets/happynood/quantthink-suite)** — frozen GSM8K (200) + MATH-500 (200) eval subsets, seed 42.
 - **[happynood/quantthink-results](https://huggingface.co/datasets/happynood/quantthink-results)** — real Phase 1-2 `result.json` files + aggregated leaderboard.
 - **[happynood/DeepSeek-R1-Distill-Qwen-1.5B-GGUF](https://huggingface.co/happynood/DeepSeek-R1-Distill-Qwen-1.5B-GGUF)** — GGUF quants (fp16/Q8_0/Q5_K_M/Q4_K_M), re-hosted unmodified from [bartowski's original conversion](https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF), with this project's own measured Acc/TL/CTS per quant in the model card.
+- **[happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ](https://huggingface.co/happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ)** — a real, self-calibrated 4-bit GPTQ quantization (not re-hosted from anyone else), calibrated on this project's own RTX 3050 via `gptqmodel` 7.1.0. See "AWQ/GPTQ calibrated models" below for the full recipe and measured numbers.
 
 ## Deferred: `quantthink-leaderboard` Gradio Space
 
@@ -19,6 +20,8 @@ No app code exists yet for this Space — writing it is a same-day task once one
 
 ## AWQ/GPTQ calibrated models
 
-Tooling landscape check (this build, per the project's dependency-verification rule): `autoawq` has not had a release since 2025-05 and should be treated as stale/unmaintained. `gptqmodel` and `llmcompressor` (the vLLM project's unified quantization tool, also covers AWQ-style recipes) are the current, actively-maintained options — see this file's own updates below once calibration is actually attempted for the chosen tool, version, and why.
+Tooling landscape check (per the project's dependency-verification rule): `autoawq` has not had a release since 2025-05 and is treated as stale/unmaintained — not used. `gptqmodel` 7.1.0 (released 2026-06-08, actively maintained) was chosen: as of its 5.0.0+ releases it has "fully supplanted AutoGPTQ and AutoAWQ," supporting both GPTQ and AWQ natively in one library, so a second tool (`llmcompressor`) wasn't needed for this pass.
 
-Status: not yet attempted as of this writing — see the rest of this file (updated in place once a real calibration run happens) or `docs/RUN_REAL.md` for the outcome.
+**Status: DONE for M1.** Real GPTQ 4-bit calibration completed on the RTX 3050 and pushed to [happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ](https://huggingface.co/happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ) — see `docs/RUN_REAL.md` for the full recipe, real bugs hit and fixed along the way (a stale `wikitext` dataset loader, a full `/tmp` tmpfs, a missing `ninja`/CUDA-toolkit dependency for the Marlin kernel), and the measured Acc/TL/CTS.
+
+M2/M3 (Qwen3-1.7B/0.6B) AWQ/GPTQ calibration: not yet attempted — a reasonable next step, not a blocker (see STATE.md for scope/time tradeoffs already made this build).
