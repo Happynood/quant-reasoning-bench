@@ -10,7 +10,32 @@
 
 ## Status
 
-Early build — skeleton and mock-backend pipeline are in place; the first real GPU sweep (H1, the "longer-but-worse" curve on DeepSeek-R1-Distill-Qwen-1.5B) is next. This section will be replaced with the real headline result once it exists.
+**A real Memory-Budget Frontier, computed from actual GPU runs on an RTX 3050 Laptop (4GB VRAM):** under the accuracy objective, the optimal model *family* itself crosses over as your VRAM budget grows — DeepSeek-R1-Distill-Qwen-1.5B wins below ~2.3GB, Qwen3-1.7B wins above it. Under the Cost-to-Solve objective, the smaller model wins the *entire* 2-4GB grid, because the larger model's accuracy gain doesn't pay for its much higher token cost. Separately, Q4 KV-cache quantization was found to cause **total generation collapse** (not smooth degradation) for the R1-distill model at Q4_K_M weights — a real, reproducible finding, confirmed by inspecting raw model output.
+
+This is a first-pass, disclosed-small-N result (N=4-12 samples per cell) — real, not fabricated, but not yet the full statistically-rigorous sweep. See [docs/RUN_REAL.md](docs/RUN_REAL.md) for the complete write-up, every caveat, and three real methodology bugs found and fixed along the way.
+
+## Leaderboard (GSM8K, real GPU results)
+
+| Model | Quant | Acc | TL | CTS | VRAM |
+|---|---|---|---|---|---|
+| DeepSeek-R1-Distill-Qwen-1.5B | fp16 | 0.667 | 469.8 | 1541.5 | 3.50 GB |
+| DeepSeek-R1-Distill-Qwen-1.5B | Q8_0 | 0.750 | 385.5 | 1246.4 | 2.16 GB |
+| DeepSeek-R1-Distill-Qwen-1.5B | Q5_K_M | 0.667 | 244.3 | 985.5 | 1.67 GB |
+| DeepSeek-R1-Distill-Qwen-1.5B | Q4_K_M | 0.583 | 420.8 | 1532.1 | 1.55 GB |
+| DeepSeek-R1-Distill-Qwen-1.5B | **GPTQ 4-bit (self-calibrated)** | 0.750 | 317.4 | 1025.1 | 1.63 GB* |
+| Qwen3-1.7B (thinking) | Q8_0 | 1.000 | 1191.8 | 2212.9 | 2.99 GB |
+| Qwen3-1.7B (thinking) | Q4_K_M | 0.875 | 1910.1 | 3717.6 | 2.32 GB |
+| Qwen3-0.6B (thinking) | fp16 | 0.500 | 1300.0 | 4934.3 | 2.40 GB |
+| Qwen3-0.6B (thinking) | Q4_K_M | 0.375 | 1385.5 | 7455.3 | 1.65 GB |
+
+\* GPTQ VRAM measured via `torch.cuda.max_memory_allocated`, not directly comparable to the `nvidia-smi`-based GGUF measurements. Full table (including MATH-500, KV-cache axis, thinking-cap grid) in [docs/RUN_REAL.md](docs/RUN_REAL.md).
+
+## Published artifacts
+
+- [happynood/quantthink-suite](https://huggingface.co/datasets/happynood/quantthink-suite) — frozen eval subsets
+- [happynood/quantthink-results](https://huggingface.co/datasets/happynood/quantthink-results) — real result.json + leaderboard
+- [happynood/DeepSeek-R1-Distill-Qwen-1.5B-GGUF](https://huggingface.co/happynood/DeepSeek-R1-Distill-Qwen-1.5B-GGUF) — benchmarked GGUF quants
+- [happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ](https://huggingface.co/happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ) — real, self-calibrated 4-bit GPTQ
 
 ## Quickstart (mock backend, zero GPU)
 
@@ -31,7 +56,7 @@ uv run quantthink run --config configs/smoke.yaml
 
 See `docs/METHODOLOGY.md` for the full metric definitions and hypotheses (H1-H5).
 
-## `quantthink recommend` (ships in Phase 3)
+## `quantthink recommend`
 
 ```bash
 quantthink recommend results/*.json --vram 4.0 --objective accuracy
