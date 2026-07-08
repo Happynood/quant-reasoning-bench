@@ -139,11 +139,23 @@ def compare_cmd(
 @click.option("--vram", required=True, type=float, help="Peak VRAM budget in GB")
 @click.option("--objective", default="accuracy", type=click.Choice(["accuracy", "cts"]))
 def recommend_cmd(result_files: tuple[str, ...], vram: float, objective: str) -> None:
-    """Recommend the accuracy- (or CTS-) optimal config for a VRAM budget (Phase 3)."""
-    raise click.ClickException(
-        "quantthink recommend ships in Phase 3 (budget/frontier.py), once real "
-        "sweep results across the 2-4GB grid exist to select from."
-    )
+    """Recommend the accuracy- (or CTS-) optimal config for a VRAM budget."""
+    from quantthink.budget.frontier import Objective, render_selection, select_for_budget
+    from quantthink.report.published import aggregate_leaderboard, run_row
+
+    results = []
+    for p in result_files:
+        with open(p) as f:
+            results.append(json.load(f))
+
+    rows = [run_row(r) for r in results]
+    leaderboard_rows = aggregate_leaderboard(rows)
+    objective_typed: Objective = "accuracy" if objective == "accuracy" else "cts"
+    selection = select_for_budget(leaderboard_rows, vram, objective_typed)
+
+    click.echo(render_selection(selection))
+    if selection.winner is None:
+        raise click.ClickException("No config satisfies the given VRAM budget.")
 
 
 @main.group("leaderboard")

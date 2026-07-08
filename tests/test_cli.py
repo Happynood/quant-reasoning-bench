@@ -44,9 +44,53 @@ def test_leaderboard_build_on_empty_dir(tmp_path):
     assert (out_dir / "leaderboard.md").exists()
 
 
-def test_recommend_not_yet_implemented(tmp_path):
-    fake_result = tmp_path / "r.json"
-    fake_result.write_text("{}")
+def _fake_result_file(path, model, quant, acc, vram_gb) -> None:
+    import json
+
+    path.write_text(
+        json.dumps(
+            {
+                "acc": acc,
+                "tl_mean": 100.0,
+                "cts": (100.0 / acc) if acc > 0 else None,
+                "vram_gb": vram_gb,
+                "config": {
+                    "model": model,
+                    "quant": quant,
+                    "kv_quant": "fp16",
+                    "thinking_cap": None,
+                    "backend": "llama-cpp",
+                    "tiers": ["E1"],
+                    "sample_size": 10,
+                    "seeds": [0],
+                },
+                "manifest": {
+                    "git_commit": "x",
+                    "config_sha256": "x",
+                    "dataset_sha256": "x",
+                    "timestamp": "2026-07-08T00:00:00Z",
+                },
+            }
+        )
+    )
+
+
+def test_recommend_picks_best_accuracy_within_budget(tmp_path):
+    fp16 = tmp_path / "fp16.json"
+    q4 = tmp_path / "q4.json"
+    _fake_result_file(fp16, "R1-1.5B", "fp16", acc=0.8, vram_gb=3.5)
+    _fake_result_file(q4, "R1-1.5B", "Q4_K_M", acc=0.6, vram_gb=1.5)
+
     runner = CliRunner()
-    result = runner.invoke(main, ["recommend", str(fake_result), "--vram", "4.0"])
+    result = runner.invoke(main, ["recommend", str(fp16), str(q4), "--vram", "2.0"])
+    assert result.exit_code == 0, result.output
+    assert "Q4_K_M" in result.output
+
+
+def test_recommend_fails_when_nothing_fits_budget(tmp_path):
+    fp16 = tmp_path / "fp16.json"
+    _fake_result_file(fp16, "R1-1.5B", "fp16", acc=0.8, vram_gb=3.5)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["recommend", str(fp16), "--vram", "1.0"])
     assert result.exit_code != 0
