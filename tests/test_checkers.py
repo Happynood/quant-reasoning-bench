@@ -39,6 +39,19 @@ def test_check_numeric_none_inputs():
     assert check_numeric("42", None) is False
 
 
+def test_check_numeric_does_not_crash_on_overflowing_number():
+    # A model can output a huge digit string (e.g. a runaway generation) that
+    # float() silently parses as inf rather than raising ValueError.
+    huge = "9" * 400
+    assert check_numeric(huge, "42") is False
+    assert check_numeric("42", huge) is False
+
+
+def test_check_numeric_does_not_crash_on_literal_infinity():
+    assert check_numeric("inf", "42") is False
+    assert check_numeric("-inf", "42") is False
+
+
 def test_check_math_boxed_normalization():
     assert check_math("\\frac{1}{2}", "\\frac{1}{2}") is True
     assert check_math("42", "42") is True

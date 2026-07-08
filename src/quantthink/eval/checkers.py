@@ -43,7 +43,12 @@ def _normalize_number(s: str) -> str | None:
         val = float(s)
     except ValueError:
         return None
-    return str(int(val)) if val == int(val) else str(val)
+    if val in (float("inf"), float("-inf")) or val != val:  # inf or NaN
+        return None
+    try:
+        return str(int(val)) if val == int(val) else str(val)
+    except (OverflowError, ValueError):
+        return None
 
 
 def extract_final_answer(answer_segment: str) -> str | None:
