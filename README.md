@@ -7,6 +7,10 @@
 [![CI](https://github.com/Happynood/quant-reasoning-bench/actions/workflows/ci.yml/badge.svg)](https://github.com/Happynood/quant-reasoning-bench/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Results dataset](https://img.shields.io/badge/🤗%20Dataset-Results-blue)](https://huggingface.co/datasets/happynood/quantthink-results)
+[![Suite dataset](https://img.shields.io/badge/🤗%20Dataset-Suite-blue)](https://huggingface.co/datasets/happynood/quantthink-suite)
+[![GGUF model](https://img.shields.io/badge/🤗%20Model-GGUF-green)](https://huggingface.co/happynood/DeepSeek-R1-Distill-Qwen-1.5B-GGUF)
+[![GPTQ model](https://img.shields.io/badge/🤗%20Model-GPTQ-green)](https://huggingface.co/happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ)
 
 ## Status
 
