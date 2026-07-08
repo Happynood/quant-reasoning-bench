@@ -160,6 +160,36 @@ Directionally, both native-Qwen3 models show a smaller, identical-sized accuracy
 
 **Real per-config timing (Phase 2):** all configs used small enough models/N to finish in 2-17 minutes each, except the Q4-KV degenerate-loop config, which (unsurprisingly, since it always hit the full 6000-token cap) took ~17 minutes for just 8 samples — a slow failure looks the same as a slow success from the outside; the per-instance `instances` array is what made it possible to tell them apart quickly.
 
+### Phase 3: Memory-Budget Frontier, computed on real combined Phase 1+2 data
+
+`budget/frontier.py` and `quantthink recommend` are no longer stubs — both now run for real. As a first real exercise of the frontier (not yet the full statistically-rigorous version — same first-pass-data caveat as everything above), all M1/M2/M3 weight-quant and KV-axis result files from Phases 1-2 (E1/GSM8K only, across everyone's differing N) were combined into one leaderboard via `quantthink leaderboard build`, then swept across a 2.0-4.0 GB budget grid with `compute_frontier()`:
+
+```bash
+uv run quantthink recommend results/phase1/*_E1.json results/phase2/*_E1.json --vram 3.0 --objective accuracy
+```
+
+**Accuracy objective:**
+
+| Budget | c*(B) | Acc | VRAM |
+|---|---|---|---|
+| 2.0 GB | M1 Q5_K_M | 0.667 | 1.67 GB |
+| 2.5 GB | M2 (Qwen3-1.7B) Q4_K_M | 0.875 | 2.32 GB |
+| 3.0 GB | M2 (Qwen3-1.7B) Q8_0 | 1.000 | 2.99 GB |
+| 3.5 GB | M2 (Qwen3-1.7B) Q8_0 | 1.000 | 2.99 GB |
+| 4.0 GB | M2 (Qwen3-1.7B) Q8_0 | 1.000 | 2.99 GB |
+
+**CTS objective:**
+
+| Budget | c*(B) | CTS | VRAM |
+|---|---|---|---|
+| 2.0-4.0 GB | M1 Q5_K_M | 985.5 | 1.67 GB (unchanged across the whole grid) |
+
+**This is a real, working H2 budget-crossover — the first one in the project — computed from actual GPU results, not fabricated:** under the accuracy objective, the optimal model *family* itself crosses over as budget increases (M1 below ~2.3GB, M2 above it), which is exactly the kind of split the Memory-Budget Frontier is supposed to surface. Under the CTS objective, M1's Q5_K_M dominates the *entire* grid — M2 answers more accurately but at such a higher token cost (CTS 2213-3718 vs. M1's 985-2248) that it never wins on cost-to-solve, a genuinely informative accuracy-vs-efficiency split between families.
+
+**Caveats before citing this anywhere:** (a) this combines files with different sample sizes/seeds per cell — `aggregate_leaderboard()` correctly bootstrap-CIs each cell but the *sample size behind* each cell varies (M1 Q4_K_M's row alone merges N=6+N=4 runs into one aggregate); (b) all of it is E1/GSM8K only — no MATH-500 or GPQA points feed the frontier yet; (c) N=4-12 per cell throughout. This demonstrates the mechanism works end-to-end on real numbers; it is not yet the rigorous, full-N frontier the spec's differentiator claim is ultimately about.
+
+**E3 (GPQA) investigated, not yet integrated:** the official `Idavidrein/gpqa` dataset is gated behind a data-sharing agreement; an ungated mirror (`hendrydong/gpqa_diamond`) exists but only exposes free-text `problem`/`solution` fields (no separate multiple-choice options), which doesn't match this project's multiple-choice checker (`check_multiple_choice` expects a bare A/B/C/D) — it would need either the gated official dataset or a checker rework to score free-form physics/chemistry/biology answers via `check_math`-style normalization. Deferred; disclosed here rather than silently skipped.
+
 ### Next real-run steps
 - Run the fuller ~200-problem x 5-seed sweep for the statistically-rigorous leaderboard entry (this is a multi-hour GPU job at the timing observed above — planned as a dedicated follow-up, not blocking further phase work).
 - Confirm H3 properly: same N, same baseline-quant convention (e.g. all vs. each model's best-fitting quant), across all three models.
