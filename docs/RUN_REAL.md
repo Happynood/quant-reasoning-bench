@@ -96,7 +96,72 @@ Config files: `configs/phase1/{fp16,Q8_0,Q5_K_M,Q4_K_M}_{E1,E2}.yaml`.
 
 **Real per-config timing** (single-run wall-clock on this hardware, useful for planning the full sweep): fp16 was dramatically slower than the quantized tiers — fp16_E1 (12 generations) took ~7 min, fp16_E2 (longer MATH chains) took ~36 min; Q8_0/Q5_K_M/Q4_K_M configs ranged roughly 4-15 min each. Peak VRAM: fp16 ~3.50 GB, Q8_0 ~2.16 GB, Q5_K_M ~1.67 GB, Q4_K_M ~1.55 GB.
 
+### Phase 2 first-pass sweep: KV-cache axis, M2/M3 family contrast, thinking-cap grid
+
+Same hardware, same sampling config as Phase 1, but an even smaller first-pass N (**N=4 problems x 2 seeds = 8 samples/cell**, E1/GSM8K only) — this phase prioritizes covering three new axes for the first time over statistical depth on any one of them; a fuller sweep is a disclosed follow-up, same as Phase 1.
+
+**Two more real bugs were caught and fixed while producing these numbers** (in addition to Phase 1's max_tokens bug):
+1. **Quantized KV cache requires flash attention.** Setting `type_k`/`type_v` to anything other than F16 without `flash_attn=True` fails outright with `Failed to create llama_context` — llama.cpp's non-F16 KV cache path is only implemented under flash attention. Fixed in `LlamaCppBackend` (see `fix: enable flash attention for quantized KV cache`).
+2. **The numeric checker crashed on overflow/infinity.** A model can emit a very long digit string (or the literal word "inf") that Python's `float()` silently parses as infinity instead of raising `ValueError`; the subsequent `int(val)` then raised an uncaught `OverflowError` and killed the whole run. Fixed by explicitly guarding against inf/NaN in `eval/checkers.py::_normalize_number` (see `fix: guard checker's numeric normalization against overflow/infinity`).
+
+**KV-cache axis on M1 (DeepSeek-R1-Distill-Qwen-1.5B, Q4_K_M weights, E1/GSM8K):**
+
+| KV dtype | Acc | TL | CTS | TruncRate | VRAM |
+|---|---|---|---|---|---|
+| fp16 | 0.375 | 541.2 | 2964.0 | 0.00 | 1.55 GB |
+| Q8   | 0.500 | 452.5 | 2001.3 | 0.00 | 1.43 GB |
+| Q4   | **0.000** | 3.5 | N/A | **1.00** | 1.38 GB |
+
+Q4 KV cache did not just reduce accuracy — **it broke generation entirely.** Every one of the 8 samples hit the 6000-token cap while producing degenerate repetition instead of an answer; manually inspecting a fresh generation under the same config confirmed it directly:
+```
+<think>
+First of Think. to Think Think to Think Think ThinkThink Think Think Think Think Think ThinkThink...
+```
+This is a real, reproducible finding, not a harness artifact: at Q4_K_M weights, this model's attention collapses under Q4 KV-cache quantization. For the Memory-Budget Frontier, this means Q4 KV is not a usable point on the frontier for this (model, weight-quant) pair at all — worse than merely low-accuracy, it is a hard exclusion. Q8 KV, in contrast, cost only 0.12 GB less VRAM than fp16 KV while nominally *improving* accuracy at this sample size (almost certainly noise, not a real gain, per the same caveat as Phase 1's Q8_0 weight result) — the honest read is "Q8 KV is free at this VRAM budget, Q4 KV is unusable," not a smooth accuracy/VRAM trade curve.
+
+**Thinking-cap grid (H5) on M1 (Q4_K_M weights, fp16 KV, E1):**
+
+| Thinking cap | Acc | TL | CTS | TruncRate |
+|---|---|---|---|---|
+| 2048 | 0.375 | 345.9 | 2087.3 | 0.12 |
+| 4096 | 0.375 | 514.5 | 2770.0 | 0.12 |
+| uncapped | 0.375 | 541.2 | 2964.0 | 0.00 |
+
+At N=8 samples/cell, accuracy is identical across all three caps — no H5 truncation-amplifies-damage effect is visible yet, though `TruncRate` does rise from 0.00 (uncapped) to 0.12 (both capped levels), meaning the caps are truncating *some* generations; at this sample size those happen to be ones that would have been wrong anyway. This is inconclusive at N=8, not a null result — a larger sweep is needed before drawing any H5 conclusion.
+
+**M2 (Qwen3-1.7B, thinking mode) family contrast, E1/GSM8K:**
+
+| Weight quant | Acc | TL | CTS | TruncRate | VRAM |
+|---|---|---|---|---|---|
+| bf16/fp16 | **OOM** (`Failed to create llama_context`) | — | — | — | — |
+| Q8_0 (labeled baseline) | 1.000 | 1191.8 | 2212.9 | 0.00 | 2.99 GB |
+| Q4_K_M | 0.875 | 1910.1 | 3717.6 | 0.12 | 2.32 GB |
+
+The bf16 OOM at `n_ctx=8192` on this 4GB card **is the expected finding, not a bug** — it reproduces the same caveat already documented in this project's sibling benchmarks (QuantCall/QuantMCP), which is why the spec labels Q8_0 as M2's baseline instead of fp16. Within the range that does fit: Δ Acc (Q8_0 → Q4_K_M) = **-0.125**, and thinking-length *rises* sharply (1191.8 → 1910.1) as accuracy falls — this is the clearest **H1 "longer-but-worse"** signal in the dataset so far (Phase 1's M1 data didn't show this pattern cleanly; M2's does, directionally, at N=8).
+
+**M3 (Qwen3-0.6B, thinking mode) family contrast, E1/GSM8K:**
+
+| Weight quant | Acc | TL | CTS | TruncRate | VRAM |
+|---|---|---|---|---|---|
+| bf16/fp16 | 0.500 | 1300.0 | 4934.3 | 0.00 | 2.40 GB |
+| Q4_K_M | 0.375 | 1385.5 | 7455.3 | 0.00 | 1.65 GB |
+
+Δ Acc (fp16 → Q4_K_M) = **-0.125**, again with TL rising (1300.0 → 1385.5) — the same directional H1 pattern as M2.
+
+**Family cross-check (H3), Q4_K_M weights, E1/GSM8K, comparable-ish N:**
+
+| Model | Family | Baseline → Q4_K_M Acc drop |
+|---|---|---|
+| M1 DeepSeek-R1-Distill-Qwen-1.5B | Qwen2.5 backbone, R1-distilled | fp16 0.667 (N=6, Phase 1) → Q4_K_M 0.375 (N=4, this phase) |
+| M2 Qwen3-1.7B | Qwen3 (native thinking) | Q8_0 1.000 → Q4_K_M 0.875 (-0.125) |
+| M3 Qwen3-0.6B | Qwen3 (native thinking) | fp16 0.500 → Q4_K_M 0.375 (-0.125) |
+
+Directionally, both native-Qwen3 models show a smaller, identical-sized accuracy drop (-0.125) than the R1-distilled Qwen2.5 model's larger apparent drop — consistent with H3's prediction that a Qwen3-family thinking model stays comparatively more robust under quantization. **This is a preliminary read at very low N, with an inconsistent baseline quant and different N for M1's comparison point (fp16, N=6) vs. M2/M3's (Q8_0/fp16, N=4)** — treat as directionally suggestive, not confirmatory. A same-N, same-baseline-quant follow-up sweep is needed to actually confirm H3.
+
+**Real per-config timing (Phase 2):** all configs used small enough models/N to finish in 2-17 minutes each, except the Q4-KV degenerate-loop config, which (unsurprisingly, since it always hit the full 6000-token cap) took ~17 minutes for just 8 samples — a slow failure looks the same as a slow success from the outside; the per-instance `instances` array is what made it possible to tell them apart quickly.
+
 ### Next real-run steps
-- Run the fuller ~200-problem x 5-seed sweep for the statistically-rigorous leaderboard entry (this is a multi-hour GPU job at the timing observed above — planned as a dedicated follow-up, not blocking Phase 2's KV-cache-axis work).
+- Run the fuller ~200-problem x 5-seed sweep for the statistically-rigorous leaderboard entry (this is a multi-hour GPU job at the timing observed above — planned as a dedicated follow-up, not blocking further phase work).
+- Confirm H3 properly: same N, same baseline-quant convention (e.g. all vs. each model's best-fitting quant), across all three models.
 - M4 (third-family stretch model): not yet chosen — the small-reasoning-model landscape moves monthly. Will be verified and recorded here before Phase 6.
 - AWQ/GPTQ tooling (Phase 4): `pyproject.toml`'s `quantize` extra currently lists `autoawq` and `gptqmodel` as placeholders; the currently-maintained package names will be re-verified immediately before Phase 4 and this note updated with the actual versions used.
