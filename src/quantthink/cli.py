@@ -240,13 +240,13 @@ def _load_problems(cfg: QuantThinkConfig) -> list[Any]:
             problems.extend(load_toy())
         elif tier == "E1":
             try:
-                problems.extend(load_gsm8k(sample_size=cfg.sample_size, seed=cfg.seeds[0]))
-            except NotImplementedError as exc:
+                problems.extend(load_gsm8k())
+            except FileNotFoundError as exc:
                 click.echo(str(exc), err=True)
         elif tier == "E2":
             try:
-                problems.extend(load_math500(sample_size=cfg.sample_size, seed=cfg.seeds[0]))
-            except NotImplementedError as exc:
+                problems.extend(load_math500())
+            except FileNotFoundError as exc:
                 click.echo(str(exc), err=True)
         else:
             click.echo(f"Unknown tier {tier!r}; skipping.", err=True)

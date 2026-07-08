@@ -4,7 +4,17 @@ This guide covers running QuantThink against actual quantized reasoning models o
 
 ## Status
 
-No real GPU sweep has been run yet — Phase 0 (this commit) only establishes the skeleton and a mock-backend pipeline. The first real sweep (M1: DeepSeek-R1-Distill-Qwen-1.5B, weight quants fp16/Q8_0/Q5_K_M/Q4_K_M, fp16 KV, uncapped, on GSM8K + MATH-500) is next; this file will be updated with the exact commands, real numbers, and any scope limitations hit.
+No real GPU sweep has been run yet. E1 (GSM8K) and E2 (MATH-500) are frozen locally under `data/suite/` (200 problems each, seed 42) via:
+
+```bash
+uv sync --extra datasets
+uv run python -m quantthink.eval.loader freeze-gsm8k
+uv run python -m quantthink.eval.loader freeze-math500
+```
+
+These are one-time generation commands (network access, not needed again once the frozen JSONL files exist) — they are what will ship as the `quantthink-suite` HF dataset in Phase 4. Ordinary benchmark runs never re-download the upstream datasets.
+
+The first real GPU sweep (M1: DeepSeek-R1-Distill-Qwen-1.5B, weight quants fp16/Q8_0/Q5_K_M/Q4_K_M, fp16 KV, uncapped, on E1+E2) is next; this file will be updated with the exact commands, real numbers, and any scope limitations hit.
 
 ## Prerequisites
 
