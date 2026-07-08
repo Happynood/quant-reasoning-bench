@@ -97,7 +97,7 @@ def freeze_gsm8k(
     Ground truth is normalized from GSM8K's "...#### N" suffix to a bare "N"
     so every tier's checker sees a plain final-answer string.
     """
-    from datasets import load_dataset
+    from datasets import load_dataset  # type: ignore[import]
 
     from quantthink.eval.checkers import extract_gsm8k_ground_truth
 
@@ -133,7 +133,7 @@ def freeze_math500(
     \\boxed{} wrapper), unlike its `solution` field — used directly as ground
     truth.
     """
-    from datasets import load_dataset
+    from datasets import load_dataset  # type: ignore[import]
 
     ds = load_dataset("HuggingFaceH4/MATH-500", split="test")
     rng = random.Random(seed)
