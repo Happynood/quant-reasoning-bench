@@ -215,8 +215,17 @@ For comparison, the llama.cpp Q4_K_M **GGUF** quant of the same base model measu
 
 Published: [happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ](https://huggingface.co/happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ).
 
+### Phase 6 (stretch): M4 landscape check
+
+Searched the Hub (2026-07-09) for a ≤2B reasoning-distilled model outside the Qwen family, per the spec's M4 criterion. Findings:
+- `deepseek-ai/DeepSeek-R1-Distill-Llama-8B` — real, official, Llama backbone, but 8B (already excluded by the spec as too big for 4GB).
+- `microsoft/Phi-4-mini-reasoning` — real, official, 3.84B params (bf16) — the closest credible candidate, but nearly 2x the ≤2B criterion; at Q4_K_M it might physically fit 4GB the way Qwen3-1.7B barely does, but that's a materially different size class than M1-M3.
+- Various community "reasoning-distilled" SmolLM2 (135M-360M) fine-tunes exist but are unofficial, low-adoption (tens to hundreds of downloads vs. hundreds of thousands for the above), and too small to credibly demonstrate multi-step CoT reasoning at a level worth benchmarking.
+
+**Conclusion: no ≤2B non-Qwen reasoning-distilled model from a major lab currently exists.** Per the spec's own anticipated outcome ("disclose if none qualifies"), M4 is left unpopulated rather than forcing a poor-fit substitute. `microsoft/Phi-4-mini-reasoning` is the credible near-miss if this project's scope is ever revisited to include ~4B-class models.
+
 ### Next real-run steps
 - Run the fuller ~200-problem x 5-seed sweep for the statistically-rigorous leaderboard entry (this is a multi-hour GPU job at the timing observed above — planned as a dedicated follow-up, not blocking further phase work).
 - Confirm H3 properly: same N, same baseline-quant convention (e.g. all vs. each model's best-fitting quant), across all three models.
-- M4 (third-family stretch model): not yet chosen — the small-reasoning-model landscape moves monthly. Will be verified and recorded here before Phase 6.
 - GPTQ/AWQ calibration for M2 (Qwen3-1.7B) and M3 (Qwen3-0.6B), where licensing allows — not yet attempted.
+- E4 (AIME)/E5 (LiveCodeBench) and a KV-eviction-vs-quantization comparison — not yet attempted this build; genuine stretch items for a future session.
