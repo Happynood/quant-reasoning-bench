@@ -1,0 +1,2 @@
+{"id": "e0-1", "tier": "E0", "prompt": "What is 2 + 2? Think step by step, then give your final answer as \\boxed{N}.", "ground_truth": "4"}
+{"id": "e0-2", "tier": "E0", "prompt": "A store has 3 boxes with 5 apples each. How many apples in total? Think step by step, then give your final answer as \\boxed{N}.", "ground_truth": "15"}

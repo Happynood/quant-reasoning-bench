@@ -1,0 +1,14 @@
+model: mock
+backend: mock
+quant: fp16
+kv_quant: fp16
+thinking_cap: null
+max_tokens: 512
+tiers:
+  - E0
+sample_size: 10
+seeds:
+  - 0
+temperature: 0.0
+top_p: 1.0
+greedy: true

@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use QuantThink in your research, please cite it as below."
+type: software
+title: "QuantThink: Does Quantization Break Reasoning? A Reproducible Benchmark for Small Long-CoT Models"
+authors:
+  - family-names: "Happynood"
+    given-names: "Alex"
+version: 0.1.0
+date-released: "2026-07-08"
+repository-code: "https://github.com/Happynood/quant-reasoning-bench"
+license: MIT
+abstract: >
+  QuantThink measures how weight- and KV-cache quantization degrade small
+  reasoning (long chain-of-thought) models on a 4GB consumer GPU, and
+  recommends the accuracy-optimal weight/KV/thinking-cap configuration for a
+  given VRAM budget. It produces structured metrics (Acc, Thinking-Length,
+  Cost-to-Solve, ΔAcc, η) from real model runs with full reproducibility
+  manifests, and ships published, calibrated quantized reasoning models.
+references:
+  - type: software
+    title: "QuantCall: Benchmarking Tool-Calling Reliability Under Quantization"
+    authors:
+      - family-names: "Happynood"
+        given-names: "Alex"
+    repository-code: "https://github.com/Happynood/quant-toolcall-bench"
+  - type: software
+    title: "QuantMCP: Does Quantization Survive Real MCP Tool Schemas?"
+    authors:
+      - family-names: "Happynood"
+        given-names: "Alex"
+    repository-code: "https://github.com/Happynood/quant-mcp-bench"
