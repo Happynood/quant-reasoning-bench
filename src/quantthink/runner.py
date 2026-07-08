@@ -74,8 +74,14 @@ def run_eval(
     peak_vram_mb: float | None = None
     seeds = [0] if cfg.greedy else cfg.seeds
     temperature = 0.0 if cfg.greedy else cfg.temperature
-    # cfg.thinking_cap is recorded in the manifest/config for every run but not yet
-    # enforced as a generation stopping condition — that lands in Phase 2 (H5 grid).
+    # thinking_cap bounds total generation length (thinking + answer), not just the
+    # thinking segment: KV-cache growth (the actual VRAM-relevant quantity for the
+    # Memory-Budget Frontier) scales with total generated tokens regardless of
+    # phase, so this is a simpler and equally faithful proxy for "how many tokens
+    # can I afford before I OOM" than a phase-specific stop would be.
+    effective_max_tokens = (
+        min(cfg.max_tokens, cfg.thinking_cap) if cfg.thinking_cap is not None else cfg.max_tokens
+    )
 
     for problem in problems:
         checker = get_checker(_benchmark_for_tier(problem.tier))
@@ -84,7 +90,7 @@ def run_eval(
         for seed in seeds:
             gen = backend.generate(
                 messages,
-                max_tokens=cfg.max_tokens,
+                max_tokens=effective_max_tokens,
                 temperature=temperature,
                 top_p=cfg.top_p,
                 seed=seed,
@@ -105,7 +111,7 @@ def run_eval(
                     thinking_tokens=len(extraction.thinking.split()),
                     total_tokens=gen.output_tokens,
                     thinking_truncated=extraction.thinking_truncated,
-                    hit_max_tokens=gen.output_tokens >= cfg.max_tokens,
+                    hit_max_tokens=gen.output_tokens >= effective_max_tokens,
                 )
             )
 
