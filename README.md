@@ -40,6 +40,7 @@ This is a first-pass, disclosed-small-N result (N=4-12 samples per cell) — rea
 - [happynood/quantthink-results](https://huggingface.co/datasets/happynood/quantthink-results) — real result.json + leaderboard
 - [happynood/DeepSeek-R1-Distill-Qwen-1.5B-GGUF](https://huggingface.co/happynood/DeepSeek-R1-Distill-Qwen-1.5B-GGUF) — benchmarked GGUF quants
 - [happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ](https://huggingface.co/happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ) — real, self-calibrated 4-bit GPTQ
+- [happynood/quantthink-leaderboard](https://huggingface.co/spaces/happynood/quantthink-leaderboard) — static leaderboard Space
 
 ## Quickstart (mock backend, zero GPU)
 

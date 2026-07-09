@@ -6,17 +6,40 @@
 - **[happynood/quantthink-results](https://huggingface.co/datasets/happynood/quantthink-results)** — real Phase 1-2 `result.json` files + aggregated leaderboard.
 - **[happynood/DeepSeek-R1-Distill-Qwen-1.5B-GGUF](https://huggingface.co/happynood/DeepSeek-R1-Distill-Qwen-1.5B-GGUF)** — GGUF quants (fp16/Q8_0/Q5_K_M/Q4_K_M), re-hosted unmodified from [bartowski's original conversion](https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF), with this project's own measured Acc/TL/CTS per quant in the model card.
 - **[happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ](https://huggingface.co/happynood/DeepSeek-R1-Distill-Qwen-1.5B-GPTQ)** — a real, self-calibrated 4-bit GPTQ quantization (not re-hosted from anyone else), calibrated on this project's own RTX 3050 via `gptqmodel` 7.1.0. See "AWQ/GPTQ calibrated models" below for the full recipe and measured numbers.
+- **[happynood/quantthink-leaderboard](https://huggingface.co/spaces/happynood/quantthink-leaderboard)** — static-SDK Space showing the real GSM8K leaderboard table and the H2 Memory-Budget Frontier finding, linking out to the datasets/models above.
 
-## Deferred: `quantthink-leaderboard` Gradio Space
+## `quantthink-leaderboard` Space: static, not Gradio
 
-Creating a **new** Gradio/Docker Space on free `cpu-basic` hardware currently returns `HTTP 402 Payment Required` — HuggingFace now requires a PRO subscription for this, which is an account/billing decision, not something this build should spend real money on unprompted. The existing sibling Spaces (`quantcall-leaderboard`, `quantmcp-leaderboard`) were created under different account/billing conditions and are unaffected.
+Both **creating** a new Gradio/Docker Space on `cpu-basic` and **duplicating**
+an existing one (`hf repos duplicate`) return `HTTP 402 Payment Required` —
+HuggingFace requires a PRO subscription for either path on this account. The
+sibling Spaces (`quantcall-leaderboard`, `quantmcp-leaderboard`) were created
+under different account/billing conditions and are unaffected, but neither
+create nor duplicate is available here without PRO.
 
-**Options for the human to unblock this later:**
-1. Subscribe to HF PRO, then re-run the publish step (`hf repo create happynood/quantthink-leaderboard --repo-type space --space-sdk gradio`).
-2. Duplicate an existing Space instead of creating fresh: `hf repo duplicate happynood/quantcall-leaderboard happynood/quantthink-leaderboard --repo-type space`, then replace `app.py`/`README.md`/`requirements.txt`.
-3. Host the Gradio app elsewhere (any environment that can run `pip install gradio pandas plotly huggingface_hub && python app.py`) and link to it from the GitHub README instead of an HF Space.
+Static Spaces (`--space-sdk static`) are free regardless, so the Space was
+built as a single static HTML page instead: `hf repos create
+happynood/quantthink-leaderboard --type space --space-sdk static`, then
+content was pushed via a direct `git clone`/`git push` against the Space's
+git remote — `hf upload`'s CLI path calls `repos/create` unconditionally
+(even for an already-existing repo) and hits the same 402, so it can't be
+used to push files to a static Space on this account either.
 
-No app code exists yet for this Space — writing it is a same-day task once one of the above is unblocked: reuse the sibling projects' own `app.py` pattern (Gradio Blocks, tabs, Plotly charts pulling CSV/JSON from `quantthink-results` via `hf_hub_download`), and add the three QuantThink-specific panels: the H1 "longer-but-worse" scatter (Acc vs TL), the H2 Memory-Budget Frontier (c*(B) as VRAM budget slides 2→4GB), and the H4 CTS-reordering comparison (leaderboard sorted by Acc vs. by CTS side by side).
+The page (`index.html`) hand-renders the same GSM8K leaderboard table and H2
+Memory-Budget Frontier callout that live in the main README, plus links to
+the datasets/models/GitHub repo. It has no live data-fetching (no
+`hf_hub_download`, no charts) — reasonable for the current small-N result
+set, but if the sweep grows (see STATE.md priority 2) this could be revisited
+as a Gradio app (once/if PRO is available) for the H1/H4 interactive panels
+described in earlier drafts of this doc.
+
+**To upgrade later if PRO becomes available:** `hf repos delete
+happynood/quantthink-leaderboard --type space`, then recreate with
+`--space-sdk gradio` and build the interactive version (Blocks, tabs, Plotly
+charts pulling from `quantthink-results` via `hf_hub_download`); add the H1
+"longer-but-worse" scatter (Acc vs TL), the H2 frontier as VRAM budget slides
+2→4GB, and the H4 CTS-reordering comparison (leaderboard sorted by Acc vs. by
+CTS side by side).
 
 ## AWQ/GPTQ calibrated models
 
